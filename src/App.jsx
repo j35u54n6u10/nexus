@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabaseClient'
 
-// --- SEED LOCAL DEMO DATA (Por si no hay conexión a Supabase) ---
+// --- SEED LOCAL DEMO DATA (Por si no hay conexión a Supabase o falta configurar) ---
 const INITIAL_CATEGORIES = [
   { id: 1, nombre: 'Proteínas' },
   { id: 2, nombre: 'Víveres' },
@@ -15,9 +15,9 @@ const INITIAL_PRODUCTS = [
   { id: 'p2', nombre: 'Carne de Res Molida', categoria_id: 1, unidad_medida: 'kg', stock_actual: 35.0, stock_minimo: 20.0 },
   { id: 'p3', nombre: 'Arroz Blanco', categoria_id: 2, unidad_medida: 'kg', stock_actual: 35.0, stock_minimo: 50.0 }, // Bajo stock
   { id: 'p4', nombre: 'Aceite Vegetal', categoria_id: 2, unidad_medida: 'litros', stock_actual: 35.0, stock_minimo: 10.0 },
-  { id: 'p5', nombre: 'Tomate', categoria_id: 3, unidad_medida: 'kg', stock_actual: 5.0, stock_minimo: 8.0 }, // Bajo stock (de semilla)
+  { id: 'p5', nombre: 'Tomate', categoria_id: 3, unidad_medida: 'kg', stock_actual: 5.0, stock_minimo: 8.0 }, // Bajo stock
   { id: 'p6', nombre: 'Cebolla Cabezoña', categoria_id: 3, unidad_medida: 'kg', stock_actual: 35.0, stock_minimo: 8.0 },
-  { id: 'p7', nombre: 'Queso Doble Crema', categoria_id: 4, unidad_medida: 'kg', stock_actual: 2.0, stock_minimo: 5.0 }, // Bajo stock (de semilla)
+  { id: 'p7', nombre: 'Queso Doble Crema', categoria_id: 4, unidad_medida: 'kg', stock_actual: 2.0, stock_minimo: 5.0 }, // Bajo stock
   { id: 'p8', nombre: 'Leche Entera', categoria_id: 4, unidad_medida: 'litros', stock_actual: 35.0, stock_minimo: 24.0 },
   { id: 'p9', nombre: 'Envase Desechable Almuerzo', categoria_id: 5, unidad_medida: 'unidades', stock_actual: 35.0, stock_minimo: 100.0 }, // Bajo stock
   { id: 'p10', nombre: 'Servilletas de Papel', categoria_id: 5, unidad_medida: 'paquetes', stock_actual: 35.0, stock_minimo: 10.0 }
@@ -32,6 +32,23 @@ const INITIAL_MOVEMENTS = [
 ]
 
 export default function App() {
+  // --- TEMA DUAL ---
+  const [theme, setTheme] = useState(() => localStorage.getItem('nexus_theme') || 'dark')
+
+  useEffect(() => {
+    localStorage.setItem('nexus_theme', theme)
+    const root = window.document.documentElement
+    if (theme === 'dark') {
+      root.classList.add('dark')
+    } else {
+      root.classList.remove('dark')
+    }
+  }, [theme])
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark')
+  }
+
   // --- ESTADOS ---
   const [isDemoMode, setIsDemoMode] = useState(true)
   const [supabaseConnected, setSupabaseConnected] = useState(false)
@@ -45,14 +62,14 @@ export default function App() {
   const [dataLoading, setDataLoading] = useState(false)
   
   // UI Tabs / Vistas
-  const [activeTab, setActiveTab] = useState('dashboard') // 'dashboard' | 'historial' | 'alertas'
+  const [activeTab, setActiveTab] = useState('dashboard') // 'dashboard' | 'alertas' | 'historial'
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
   
-  // Modales
+  // Modales / Bottom Sheets
   const [showMovementModal, setShowMovementModal] = useState(false)
   const [selectedProductForMov, setSelectedProductForMov] = useState(null)
-  const [movementType, setMovementType] = useState('Entrada')
+  const [movementType, setMovementType] = useState('Entrada') // 'Entrada' | 'Salida'
   const [movementQty, setMovementQty] = useState('')
   const [movementReason, setMovementReason] = useState('')
   const [movementError, setMovementError] = useState('')
@@ -65,7 +82,7 @@ export default function App() {
   const [newProductError, setNewProductError] = useState('')
 
   // Toast / Notificaciones
-  const [toast, setToast] = useState(null) // { type: 'success'|'error', message: '' }
+  const [toast, setToast] = useState(null)
 
   // Formulario Auth
   const [authEmail, setAuthEmail] = useState('')
@@ -73,7 +90,7 @@ export default function App() {
   const [isSignUp, setIsSignUp] = useState(false)
   const [authErrorMsg, setAuthErrorMsg] = useState('')
 
-  // --- DETECCION DE CREDENCIALES Y AUTENTICACION ---
+  // --- DETECCION DE CREDENCIALES ---
   useEffect(() => {
     const checkSupabaseConfig = async () => {
       const url = import.meta.env.VITE_SUPABASE_URL
@@ -83,27 +100,25 @@ export default function App() {
         !url || 
         !key || 
         url.includes('REEMPLAZAR') || 
-        key.includes('REEMPLAZAR')
+        key.includes('REEMPLAZAR') ||
+        url.includes('TU_PROYECTO_SUPABASE') ||
+        key.includes('TU_API_KEY_ANON_DE_SUPABASE')
         
       if (isPlaceholder) {
-        // Inicializar Demo Local
         setIsDemoMode(true)
         setSupabaseConnected(false)
         setAuthLoading(false)
         loadLocalData()
         
-        // Cargar sesión de usuario demo si existe
         const savedDemoUser = localStorage.getItem('nexus_demo_user')
         if (savedDemoUser) {
           setUser(JSON.parse(savedDemoUser))
         }
       } else {
-        // Intentar conectar con Supabase
         try {
           setIsDemoMode(false)
           setSupabaseConnected(true)
           
-          // Escuchar cambios de autenticación
           const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             if (session) {
               setUser(session.user)
@@ -113,7 +128,6 @@ export default function App() {
             setAuthLoading(false)
           })
           
-          // Verificar sesión actual
           const { data: { session } } = await supabase.auth.getSession()
           if (session) {
             setUser(session.user)
@@ -125,7 +139,7 @@ export default function App() {
             subscription?.unsubscribe()
           }
         } catch (e) {
-          console.error("Error al conectar con Supabase, cayendo a modo Demo:", e)
+          console.error("Error conectando a Supabase, cayendo a modo Demo:", e)
           setIsDemoMode(true)
           setSupabaseConnected(false)
           setAuthLoading(false)
@@ -137,7 +151,6 @@ export default function App() {
     checkSupabaseConfig()
   }, [])
 
-  // Cargar datos cuando el usuario inicia sesión o cambia de modo
   useEffect(() => {
     if (isDemoMode) {
       loadLocalData()
@@ -146,12 +159,10 @@ export default function App() {
     }
   }, [user, isDemoMode])
 
-  // --- MÉTODOS DE DATOS LOCALES (LOCALSTORAGE) ---
+  // --- LOCAL STORAGE ---
   const loadLocalData = () => {
-    // Categorías
     setCategories(INITIAL_CATEGORIES)
     
-    // Productos
     const localProducts = localStorage.getItem('nexus_products')
     if (!localProducts) {
       localStorage.setItem('nexus_products', JSON.stringify(INITIAL_PRODUCTS))
@@ -160,7 +171,6 @@ export default function App() {
       setProducts(JSON.parse(localProducts))
     }
     
-    // Movimientos
     const localMovements = localStorage.getItem('nexus_movements')
     if (!localMovements) {
       localStorage.setItem('nexus_movements', JSON.stringify(INITIAL_MOVEMENTS))
@@ -170,11 +180,10 @@ export default function App() {
     }
   }
 
-  // --- MÉTODOS DE DATOS REMOTOS (SUPABASE) ---
+  // --- SUPABASE CLIENT ---
   const fetchSupabaseData = async () => {
     setDataLoading(true)
     try {
-      // 1. Fetch Categorías
       const { data: cats, error: catError } = await supabase
         .from('categorias')
         .select('*')
@@ -183,7 +192,6 @@ export default function App() {
       if (catError) throw catError
       setCategories(cats || [])
 
-      // 2. Fetch Productos
       const { data: prods, error: prodError } = await supabase
         .from('productos')
         .select('*, categorias(nombre)')
@@ -191,14 +199,12 @@ export default function App() {
         
       if (prodError) throw prodError
       
-      // Mapear para que coincida con la estructura esperada (categorias.nombre -> categoria_nombre)
       const mappedProds = prods.map(p => ({
         ...p,
         categoria_nombre: p.categorias?.nombre
       }))
       setProducts(mappedProds || [])
 
-      // 3. Fetch Movimientos
       const { data: movs, error: movError } = await supabase
         .from('movimientos')
         .select('*, productos(nombre, unidad_medida)')
@@ -213,38 +219,37 @@ export default function App() {
       }))
       setMovements(mappedMovs || [])
     } catch (err) {
-      showToast('error', `Error al cargar datos: ${err.message}`)
+      showToast('error', `Error de carga: ${err.message}`)
     } finally {
       setDataLoading(false)
     }
   }
 
-  // --- MANEJO DE AUTENTICACION ---
+  // --- AUTENTICACION ---
   const handleAuthSubmit = async (e) => {
     e.preventDefault()
     setAuthErrorMsg('')
     
     if (!authEmail || !authPassword) {
-      setAuthErrorMsg('Completa todos los campos.')
+      setAuthErrorMsg('Ingresa correo y contraseña.')
       return
     }
 
     if (isDemoMode) {
-      // Registrar/Iniciar sesión ficticio para Demo
       const demoUser = { id: 'demo-user-123', email: authEmail, nombre: authEmail.split('@')[0] }
       setUser(demoUser)
       localStorage.setItem('nexus_demo_user', JSON.stringify(demoUser))
-      showToast('success', `Sesión iniciada como ${demoUser.email} (Demo)`)
+      showToast('success', `Sesión iniciada (Demo)`)
     } else {
       setAuthLoading(true)
       try {
         if (isSignUp) {
-          const { data, error } = await supabase.auth.signUp({
+          const { error } = await supabase.auth.signUp({
             email: authEmail,
             password: authPassword
           })
           if (error) throw error
-          showToast('success', '¡Registro exitoso! Verifica tu correo electrónico o inicia sesión.')
+          showToast('success', '¡Registro exitoso! Confirma tu correo o inicia sesión.')
           setIsSignUp(false)
         } else {
           const { data, error } = await supabase.auth.signInWithPassword({
@@ -253,7 +258,7 @@ export default function App() {
           })
           if (error) throw error
           setUser(data.user)
-          showToast('success', 'Sesión iniciada con éxito.')
+          showToast('success', 'Sesión iniciada.')
         }
       } catch (err) {
         setAuthErrorMsg(err.message)
@@ -276,7 +281,6 @@ export default function App() {
   }
 
   const handleBypassAuth = () => {
-    // Forzar Modo Demo y loguear automáticamente
     setIsDemoMode(true)
     const demoUser = { id: 'demo-user-123', email: 'chef.demo@nexus.com', nombre: 'Chef Demo' }
     setUser(demoUser)
@@ -284,13 +288,13 @@ export default function App() {
     showToast('success', 'Modo Demostración Local Activado')
   }
 
-  // --- OPERACIONES: REGISTRAR MOVIMIENTO ---
+  // --- REGISTRAR MOVIMIENTO (Trigger local / remoto) ---
   const handleRegisterMovement = async (e) => {
     e.preventDefault()
     setMovementError('')
     
     if (!selectedProductForMov || !movementQty || isNaN(movementQty) || parseFloat(movementQty) <= 0 || !movementReason) {
-      setMovementError('Por favor ingresa valores válidos y un motivo obligatoriamente.')
+      setMovementError('Ingresa una cantidad y motivo obligatorios.')
       return
     }
 
@@ -298,25 +302,22 @@ export default function App() {
     const prod = products.find(p => p.id === selectedProductForMov)
 
     if (!prod) {
-      setMovementError('Producto no encontrado.')
+      setMovementError('Insumo no encontrado.')
       return
     }
 
-    // Prevención temprana en UI para salidas excedentes
     if (movementType === 'Salida' && prod.stock_actual < qty) {
-      setMovementError(`Validación UI: Stock insuficiente. Solo hay ${prod.stock_actual} ${prod.unidad_medida} disponibles.`);
+      setMovementError(`Validación: Stock insuficiente. Solo hay ${prod.stock_actual} ${prod.unidad_medida} disponibles.`);
       return
     }
 
     if (isDemoMode) {
-      // Simular trigger de base de datos
       const localProds = [...products]
       const index = localProds.findIndex(p => p.id === selectedProductForMov)
       
       if (movementType === 'Salida') {
         if (localProds[index].stock_actual < qty) {
-          // Lanzar error como el trigger
-          showToast('error', `Error DB Trigger: Stock insuficiente para "${prod.nombre}". Stock actual: ${prod.stock_actual} ${prod.unidad_medida}.`)
+          showToast('error', `Trigger: Stock insuficiente para "${prod.nombre}".`)
           return
         }
         localProds[index].stock_actual -= qty
@@ -324,18 +325,16 @@ export default function App() {
         localProds[index].stock_actual += qty
       }
 
-      // Guardar productos actualizados
       localStorage.setItem('nexus_products', JSON.stringify(localProds))
       setProducts(localProds)
 
-      // Registrar movimiento
       const newMov = {
         id: 'm-' + Math.random().toString(36).substring(2, 9),
         producto_id: selectedProductForMov,
         tipo: movementType,
         cantidad: qty,
         motivo: movementReason,
-        usuario_email: user?.email || 'anonimo@nexus.com',
+        usuario_email: user?.email || 'chef.demo@nexus.com',
         creado_en: new Date().toISOString(),
         producto_nombre: prod.nombre,
         unidad_medida: prod.unidad_medida
@@ -349,7 +348,6 @@ export default function App() {
       setShowMovementModal(false)
       resetMovementForm()
     } else {
-      // Llamada real a Supabase (el trigger de PostgreSQL validará y actualizará el stock)
       setDataLoading(true)
       try {
         const { error } = await supabase
@@ -362,18 +360,15 @@ export default function App() {
             usuario_email: user?.email
           })
           
-        if (error) {
-          // El error del trigger de Postgres vendrá aquí
-          throw error
-        }
+        if (error) throw error
 
-        showToast('success', `Movimiento registrado en Supabase exitosamente.`)
+        showToast('success', 'Movimiento registrado en Supabase.')
         setShowMovementModal(false)
         resetMovementForm()
-        await fetchSupabaseData() // Recargar datos frescos
+        await fetchSupabaseData()
       } catch (err) {
-        setMovementError(err.message || 'Error al guardar en la base de datos.')
-        showToast('error', err.message || 'Error de base de datos')
+        setMovementError(err.message)
+        showToast('error', err.message)
       } finally {
         setDataLoading(false)
       }
@@ -386,32 +381,30 @@ export default function App() {
     setMovementError('')
   }
 
-  // --- OPERACIONES: CREAR PRODUCTO ---
+  // --- NUEVO INSUMO ---
   const handleCreateProduct = async (e) => {
     e.preventDefault()
     setNewProductError('')
     
     if (!newProductName.trim() || !newProductCategory || !newProductMinStock || isNaN(newProductMinStock) || parseFloat(newProductMinStock) < 0) {
-      setNewProductError('Completa todos los campos correctamente.')
+      setNewProductError('Completa todos los campos obligatorios.')
       return
     }
 
     const minStock = parseFloat(newProductMinStock)
 
     if (isDemoMode) {
-      // Guardar en local storage
       const newProd = {
         id: 'p-' + Math.random().toString(36).substring(2, 9),
         nombre: newProductName.trim(),
         categoria_id: parseInt(newProductCategory),
         unidad_medida: newProductUnit,
-        stock_actual: 0.0, // Obligatorio iniciar en 0 para inmutabilidad directa
+        stock_actual: 0.0,
         stock_minimo: minStock
       }
 
-      // Validar nombre único
       if (products.some(p => p.nombre.toLowerCase() === newProd.nombre.toLowerCase())) {
-        setNewProductError('Ya existe un producto con este nombre.')
+        setNewProductError('Ya existe un insumo con este nombre.')
         return
       }
 
@@ -419,7 +412,7 @@ export default function App() {
       localStorage.setItem('nexus_products', JSON.stringify(updatedProds))
       setProducts(updatedProds)
       
-      showToast('success', `Producto "${newProd.nombre}" creado exitosamente (Stock inicial: 0).`)
+      showToast('success', `Insumo "${newProd.nombre}" creado (Stock: 0).`)
       setShowProductModal(false)
       resetProductForm()
     } else {
@@ -432,12 +425,11 @@ export default function App() {
             categoria_id: parseInt(newProductCategory),
             unidad_medida: newProductUnit,
             stock_minimo: minStock
-            // stock_actual se inicializa en 0 automáticamente por base de datos
           })
           
         if (error) throw error
 
-        showToast('success', `Producto creado exitosamente en Supabase.`)
+        showToast('success', `Insumo creado en Supabase.`)
         setShowProductModal(false)
         resetProductForm()
         await fetchSupabaseData()
@@ -456,28 +448,25 @@ export default function App() {
     setNewProductError('')
   }
 
-  // --- UTILS ---
+  // --- NOTIFICACIONES ---
   const showToast = (type, message) => {
     setToast({ type, message })
-    setTimeout(() => {
-      setToast(null)
-    }, 5000)
+    setTimeout(() => setToast(null), 4000)
   }
 
-  // Mapear nombres de categorías para renderizado
+  // --- MAPEO DE CATEGORIAS ---
   const categoryMap = useMemo(() => {
     const map = {}
-    categories.forEach(c => {
-      map[c.id] = c.nombre
-    })
+    categories.forEach(c => { map[c.id] = c.nombre })
     return map
   }, [categories])
 
-  // --- FILTROS DE PRODUCTOS ---
+  // --- FILTROS ---
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
+      const catName = p.categoria_nombre || categoryMap[p.categoria_id] || ''
       const matchSearch = p.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (p.categoria_nombre || categoryMap[p.categoria_id] || '').toLowerCase().includes(searchQuery.toLowerCase())
+                          catName.toLowerCase().includes(searchQuery.toLowerCase())
       
       const matchCategory = selectedCategory === 'All' || 
                             p.categoria_id.toString() === selectedCategory.toString()
@@ -486,7 +475,7 @@ export default function App() {
     })
   }, [products, searchQuery, selectedCategory, categoryMap])
 
-  // --- MÉTRICAS DEL INVENTARIO ---
+  // --- METRICAS ---
   const metrics = useMemo(() => {
     let alertCount = 0
     let outCount = 0
@@ -494,13 +483,12 @@ export default function App() {
     products.forEach(p => {
       if (p.stock_actual === 0) {
         outCount++
-        alertCount++ // Agotados también están por debajo del mínimo
+        alertCount++
       } else if (p.stock_actual <= p.stock_minimo) {
         alertCount++
       }
     })
     
-    // Movimientos de hoy
     const startOfToday = new Date()
     startOfToday.setHours(0,0,0,0)
     const todayMovements = movements.filter(m => new Date(m.creado_en) >= startOfToday).length
@@ -513,29 +501,26 @@ export default function App() {
     }
   }, [products, movements])
 
-  // Productos únicamente en alerta para la lista de compras
   const alertProducts = useMemo(() => {
     return products.filter(p => p.stock_actual <= p.stock_minimo)
   }, [products])
 
-  // Copiar lista de compras
   const copyShoppingList = () => {
     const text = alertProducts.map(p => {
       const faltante = Math.max(0, p.stock_minimo - p.stock_actual)
       const catName = p.categoria_nombre || categoryMap[p.categoria_id] || 'General'
-      return `- [${catName}] ${p.nombre}: Stock Actual: ${p.stock_actual} ${p.unidad_medida} | Mínimo: ${p.stock_minimo} ${p.unidad_medida} (Faltante: ${faltante} ${p.unidad_medida})`
+      return `- [${catName}] ${p.nombre}: Stock: ${p.stock_actual} / Min: ${p.stock_minimo} ${p.unidad_medida} (Falta: ${faltante})`
     }).join('\n')
 
     navigator.clipboard.writeText(text)
-    showToast('success', 'Lista de compras copiada al portapapeles.')
+    showToast('success', 'Lista de compras copiada.')
   }
 
-  // --- VISTA DE CARGA INICIAL ---
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center flex-col space-y-4">
-        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-gray-400 font-medium">Iniciando sistema NEXUS...</p>
+      <div className="min-h-screen flex items-center justify-center flex-col space-y-4 bg-brand-bg text-brand-text">
+        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-sm font-semibold tracking-wide text-brand-muted">Cargando inventario Nexus...</p>
       </div>
     )
   }
@@ -543,89 +528,96 @@ export default function App() {
   // --- PANTALLA DE ACCESO (LOGIN) ---
   if (!user) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        {/* Toast Notificación */}
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-brand-bg text-brand-text transition-colors duration-300">
+        
+        {/* Toggle de Tema flotante en el login */}
+        <button
+          onClick={toggleTheme}
+          className="absolute top-6 right-6 p-3 rounded-full glass hover:scale-110 active:scale-95 transition-all text-xl cursor-pointer"
+          title="Cambiar Tema"
+        >
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
+
         {toast && (
           <div className={`fixed top-4 right-4 z-50 glass px-6 py-3 rounded-xl shadow-2xl flex items-center space-x-3 animate-slide-up ${
             toast.type === 'error' ? 'border-red-500/40 text-red-400' : 'border-emerald-500/40 text-emerald-400'
           }`}>
             <span className="w-2 h-2 rounded-full bg-current animate-ping"></span>
-            <p className="text-sm font-semibold">{toast.message}</p>
+            <p className="text-xs font-bold">{toast.message}</p>
           </div>
         )}
 
-        {/* Card de Login */}
-        <div className="w-full max-w-md glass rounded-3xl p-8 shadow-2xl border border-white/5 relative overflow-hidden animate-slide-up">
-          {/* Fondo decorativo interno */}
-          <div className="absolute -top-24 -left-24 w-48 h-48 bg-blue-600/20 rounded-full blur-3xl"></div>
-          <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-purple-600/20 rounded-full blur-3xl"></div>
-
-          <div className="relative z-10 text-center mb-8">
-            <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
+        {/* Card de Acceso estilo App Móvil */}
+        <div className="w-full max-w-sm glass rounded-[2.5rem] p-8 shadow-2xl relative overflow-hidden animate-slide-up soft-shadow border border-brand-border">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-blue-500/10 rounded-3xl mx-auto flex items-center justify-center mb-3">
+              <svg className="w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-blue-500 to-indigo-400 bg-clip-text text-transparent">
               NEXUS
             </h1>
-            <p className="text-gray-400 text-sm mt-1">Gestión de Inventario Alimenticio</p>
+            <p className="text-brand-muted text-xs mt-1 font-semibold">Sistema de Inventario Móvil</p>
           </div>
 
-          <form onSubmit={handleAuthSubmit} className="space-y-5 relative z-10">
+          <form onSubmit={handleAuthSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Correo Electrónico</label>
+              <label className="block text-[10px] font-bold text-brand-muted uppercase tracking-wider mb-1.5 ml-1">Correo Electrónico</label>
               <input
                 type="email"
                 value={authEmail}
                 onChange={(e) => setAuthEmail(e.target.value)}
-                placeholder="chef@nexus.com"
-                className="w-full px-4 py-3 rounded-xl bg-slate-900/60 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm"
+                placeholder="usuario@nexus.com"
+                className="w-full px-4 py-3 rounded-2xl bg-brand-bg border border-brand-border text-brand-text placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all text-sm h-12"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Contraseña</label>
+              <label className="block text-[10px] font-bold text-brand-muted uppercase tracking-wider mb-1.5 ml-1">Contraseña</label>
               <input
                 type="password"
                 value={authPassword}
                 onChange={(e) => setAuthPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full px-4 py-3 rounded-xl bg-slate-900/60 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm"
+                className="w-full px-4 py-3 rounded-2xl bg-brand-bg border border-brand-border text-brand-text placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all text-sm h-12"
               />
             </div>
 
             {authErrorMsg && (
-              <div className="p-3 bg-red-950/40 border border-red-500/30 rounded-xl text-xs text-red-400">
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400">
                 {authErrorMsg}
               </div>
             )}
 
             <button
               type="submit"
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold rounded-xl text-sm transition-all shadow-lg shadow-blue-900/30 hover:shadow-blue-900/50 transform hover:-translate-y-0.5"
+              className="w-full h-12 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-2xl text-sm transition-all shadow-md shadow-blue-500/10 active:scale-98 cursor-pointer"
             >
-              {isSignUp ? 'Registrarse' : 'Iniciar Sesión'}
+              {isSignUp ? 'Registrarse en Nexus' : 'Ingresar'}
             </button>
           </form>
 
-          <div className="relative z-10 flex flex-col items-center mt-6 space-y-4">
+          <div className="flex flex-col items-center mt-6 space-y-4">
             <button
               onClick={() => setIsSignUp(!isSignUp)}
-              className="text-xs text-gray-400 hover:text-white transition-all underline"
+              className="text-xs text-brand-muted hover:text-brand-text transition-all underline"
             >
-              {isSignUp ? '¿Ya tienes una cuenta? Inicia Sesión' : '¿No tienes cuenta? Regístrate'}
+              {isSignUp ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Crea una'}
             </button>
 
-            <div className="w-full flex items-center justify-between py-2">
-              <div className="w-full h-px bg-white/5"></div>
-              <span className="text-[10px] uppercase font-bold text-gray-600 px-3 tracking-widest">O</span>
-              <div className="w-full h-px bg-white/5"></div>
+            <div className="w-full flex items-center justify-between py-1">
+              <div className="w-full h-px bg-brand-border"></div>
+              <span className="text-[9px] uppercase font-black text-brand-muted px-3 tracking-widest">O</span>
+              <div className="w-full h-px bg-brand-border"></div>
             </div>
 
             <button
               onClick={handleBypassAuth}
-              className="w-full py-3 bg-slate-800/60 border border-white/5 hover:bg-slate-700/60 text-slate-300 font-semibold rounded-xl text-sm transition-all hover:text-white flex items-center justify-center space-x-2"
+              className="w-full h-12 bg-slate-500/10 border border-brand-border hover:bg-slate-500/20 text-brand-text font-bold rounded-2xl text-xs transition-all flex items-center justify-center space-x-2 cursor-pointer"
             >
-              <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span>Modo Demostración (Local)</span>
+              <span>Acceder como Demo Local</span>
             </button>
           </div>
         </div>
@@ -635,452 +627,485 @@ export default function App() {
 
   // --- VISTA DASHBOARD PRINCIPAL ---
   return (
-    <div className="min-h-screen flex flex-col pb-12">
+    <div className="min-h-screen bg-brand-bg text-brand-text flex flex-col pb-24 md:pb-8 transition-colors duration-300">
+      
       {/* Toast Notificación */}
       {toast && (
-        <div className={`fixed bottom-4 right-4 z-50 glass px-6 py-3 rounded-xl shadow-2xl flex items-center space-x-3 animate-slide-up ${
+        <div className={`fixed bottom-20 md:bottom-6 right-4 z-50 glass px-5 py-3 rounded-xl shadow-2xl flex items-center space-x-2 animate-slide-up ${
           toast.type === 'error' ? 'border-red-500/40 text-red-400' : 'border-emerald-500/40 text-emerald-400'
         }`}>
-          <span className="w-2 h-2 rounded-full bg-current animate-ping"></span>
-          <p className="text-sm font-semibold">{toast.message}</p>
+          <span className="w-1.5 h-1.5 rounded-full bg-current animate-ping"></span>
+          <p className="text-xs font-bold">{toast.message}</p>
         </div>
       )}
 
-      {/* Header */}
-      <header className="glass-header sticky top-0 z-40 px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <span className="text-2xl font-black bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent tracking-tight">
-            NEXUS
-          </span>
-          <span className={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider ${
-            isDemoMode 
-              ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' 
-              : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-          }`}>
-            {isDemoMode ? '💾 Modo Demo Local' : '⚡ Supabase Conectado'}
-          </span>
+      {/* Header Premium (Ergonómico) */}
+      <header className="glass-header sticky top-0 z-30 px-4 md:px-8 py-3.5 flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <div className="w-9 h-9 bg-blue-600/10 rounded-xl flex items-center justify-center border border-blue-500/20">
+            <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+          </div>
+          <div>
+            <span className="text-lg font-black tracking-tight bg-gradient-to-r from-blue-500 to-indigo-400 bg-clip-text text-transparent block">
+              NEXUS
+            </span>
+            <span className="text-[8px] font-black text-brand-muted uppercase tracking-wider block -mt-1">
+              {isDemoMode ? 'Demostración' : 'Supabase Activo'}
+            </span>
+          </div>
         </div>
 
-        <div className="flex items-center space-x-6">
-          <div className="hidden md:flex flex-col text-right">
-            <span className="text-xs text-gray-400">Usuario Activo</span>
-            <span className="text-sm font-medium text-gray-200">{user.email}</span>
+        {/* Acciones del Header */}
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={toggleTheme}
+            className="p-2.5 rounded-xl glass hover:scale-105 active:scale-95 text-sm transition-all cursor-pointer"
+            title="Cambiar Modo"
+          >
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
+          
+          <div className="hidden md:flex flex-col text-right text-xs">
+            <span className="text-[10px] text-brand-muted font-bold">Chef Activo</span>
+            <span className="font-semibold">{user.email.split('@')[0]}</span>
           </div>
+
           <button
             onClick={handleLogout}
-            className="px-4 py-2 bg-slate-800/80 hover:bg-slate-700/80 hover:text-red-400 text-gray-300 font-semibold rounded-lg text-xs transition-all border border-white/5"
+            className="p-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all text-xs font-semibold cursor-pointer"
+            title="Cerrar Sesión"
           >
-            Cerrar Sesión
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
           </button>
         </div>
       </header>
 
-      {/* Contenido Principal */}
-      <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-8 flex-1">
+      {/* Cuerpo Principal */}
+      <main className="max-w-4xl w-full mx-auto px-4 pt-6 flex-1">
         
-        {/* Sección de Métricas */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div className="glass rounded-2xl p-6 relative overflow-hidden transition-all hover:scale-[1.02] border border-white/5">
-            <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider block">Total Insumos</span>
-            <span className="text-4xl font-extrabold text-white mt-2 block">{metrics.total}</span>
-            <div className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
-              <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-              </svg>
-            </div>
+        {/* Sección de Métricas (Formato Circular Redondeado de la Referencia) */}
+        <section className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 mb-6">
+          <div className="glass rounded-[1.8rem] p-4.5 relative overflow-hidden transition-all hover:scale-[1.01]">
+            <span className="text-[9px] text-brand-muted font-bold uppercase tracking-wider block">Insumos</span>
+            <span className="text-3xl font-extrabold text-brand-text mt-1 block">{metrics.total}</span>
+            <span className="text-[9px] text-brand-muted block mt-0.5 font-medium">Registrados</span>
           </div>
 
-          <div className="glass rounded-2xl p-6 relative overflow-hidden transition-all hover:scale-[1.02] border border-white/5">
-            <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider block">Bajo Stock (Alerta)</span>
-            <span className="text-4xl font-extrabold text-amber-400 mt-2 block">{metrics.alerts}</span>
-            <div className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
-              <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
+          <div className="glass rounded-[1.8rem] p-4.5 relative overflow-hidden transition-all hover:scale-[1.01]">
+            <span className="text-[9px] text-brand-muted font-bold uppercase tracking-wider block">Reabastecer</span>
+            <span className="text-3xl font-extrabold text-amber-500 mt-1 block">{metrics.alerts}</span>
+            <span className="text-[9px] text-amber-500/80 block mt-0.5 font-semibold animate-pulse">Bajo Mínimo</span>
           </div>
 
-          <div className="glass rounded-2xl p-6 relative overflow-hidden transition-all hover:scale-[1.02] border border-white/5">
-            <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider block">Insumos Agotados</span>
-            <span className="text-4xl font-extrabold text-red-500 mt-2 block">{metrics.out}</span>
-            <div className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center">
-              <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-              </svg>
-            </div>
+          <div className="glass rounded-[1.8rem] p-4.5 relative overflow-hidden transition-all hover:scale-[1.01]">
+            <span className="text-[9px] text-brand-muted font-bold uppercase tracking-wider block">Agotado</span>
+            <span className="text-3xl font-extrabold text-red-500 mt-1 block">{metrics.out}</span>
+            <span className="text-[9px] text-red-500/80 block mt-0.5 font-semibold">Stock Cero</span>
           </div>
 
-          <div className="glass rounded-2xl p-6 relative overflow-hidden transition-all hover:scale-[1.02] border border-white/5">
-            <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider block">Movimientos (Hoy)</span>
-            <span className="text-4xl font-extrabold text-indigo-400 mt-2 block">{metrics.today}</span>
-            <div className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center">
-              <svg className="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-              </svg>
-            </div>
+          <div className="glass rounded-[1.8rem] p-4.5 relative overflow-hidden transition-all hover:scale-[1.01]">
+            <span className="text-[9px] text-brand-muted font-bold uppercase tracking-wider block">Operaciones</span>
+            <span className="text-3xl font-extrabold text-blue-500 mt-1 block">{metrics.today}</span>
+            <span className="text-[9px] text-brand-muted block mt-0.5 font-medium">Registradas hoy</span>
           </div>
         </section>
 
-        {/* Selector de Pestañas */}
-        <div className="flex border-b border-white/5 mb-8">
+        {/* Pestanas en Pantallas Grandes (Desktop tabs) */}
+        <div className="hidden md:flex border-b border-brand-border mb-6">
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`py-4 px-6 text-sm font-semibold border-b-2 transition-all flex items-center space-x-2 ${
-              activeTab === 'dashboard' 
-                ? 'border-blue-500 text-blue-400' 
-                : 'border-transparent text-gray-400 hover:text-gray-200'
+            className={`py-3 px-5 text-xs font-bold border-b-2 tracking-wide transition-all ${
+              activeTab === 'dashboard' ? 'border-blue-500 text-blue-500' : 'border-transparent text-brand-muted hover:text-brand-text'
             }`}
           >
-            <span>Insumos</span>
-            <span className="px-1.5 py-0.5 rounded-full bg-slate-800 text-[10px] text-gray-300 font-bold">{products.length}</span>
+            Almacén ({products.length})
           </button>
-
           <button
             onClick={() => setActiveTab('alertas')}
-            className={`py-4 px-6 text-sm font-semibold border-b-2 transition-all flex items-center space-x-2 ${
-              activeTab === 'alertas' 
-                ? 'border-amber-500 text-amber-400' 
-                : 'border-transparent text-gray-400 hover:text-gray-200'
+            className={`py-3 px-5 text-xs font-bold border-b-2 tracking-wide transition-all ${
+              activeTab === 'alertas' ? 'border-amber-500 text-amber-500' : 'border-transparent text-brand-muted hover:text-brand-text'
             }`}
           >
-            <span>Alertas de Reabastecimiento</span>
-            {metrics.alerts > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full bg-amber-500/10 text-[10px] text-amber-400 border border-amber-500/20 font-bold animate-pulse">
-                {metrics.alerts}
-              </span>
-            )}
+            Lista de Compras ({metrics.alerts})
           </button>
-
           <button
             onClick={() => setActiveTab('historial')}
-            className={`py-4 px-6 text-sm font-semibold border-b-2 transition-all flex items-center space-x-2 ${
-              activeTab === 'historial' 
-                ? 'border-purple-500 text-purple-400' 
-                : 'border-transparent text-gray-400 hover:text-gray-200'
+            className={`py-3 px-5 text-xs font-bold border-b-2 tracking-wide transition-all ${
+              activeTab === 'historial' ? 'border-purple-500 text-purple-500' : 'border-transparent text-brand-muted hover:text-brand-text'
             }`}
           >
-            <span>Auditoría de Movimientos</span>
+            Auditoría
           </button>
         </div>
 
-        {/* TAB 1: INSUMOS (DASHBOARD) */}
+        {/* TAB 1: ALMACÉN (DASHBOARD) */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-6 animate-fade-in">
-            {/* Buscador, Filtros y Acciones */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex flex-1 flex-col sm:flex-row gap-3">
-                {/* Buscador */}
-                <div className="relative flex-1 max-w-md">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Buscar insumo o categoría..."
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900/60 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm"
-                  />
-                  <div className="absolute left-3 top-3 text-gray-500">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </div>
+          <div className="space-y-5 animate-fade-in">
+            {/* Controles de Búsqueda y Creación */}
+            <div className="space-y-3">
+              {/* Caja de Búsqueda Móvil */}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Buscar por insumo..."
+                  className="w-full pl-10 pr-4 py-3 rounded-2xl bg-brand-card border border-brand-border text-brand-text placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 transition-all text-sm"
+                />
+                <div className="absolute left-3.5 top-3.5 text-brand-muted">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
                 </div>
-
-                {/* Filtro por Categorías */}
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="px-4 py-2.5 rounded-xl bg-slate-900/60 border border-white/10 text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 text-sm cursor-pointer"
-                >
-                  <option value="All">Todas las Categorías</option>
-                  {categories.map(c => (
-                    <option key={c.id} value={c.id}>{c.nombre}</option>
-                  ))}
-                </select>
               </div>
 
-              {/* Botón Nuevo Insumo */}
-              <button
-                onClick={() => setShowProductModal(true)}
-                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-sm transition-all shadow-lg shadow-blue-900/20 flex items-center justify-center space-x-2"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                <span>Nuevo Insumo</span>
-              </button>
+              {/* Pills de Categoría Deslizables Horizontalmente (Ergonómico para celular) */}
+              <div className="flex overflow-x-auto pb-1.5 gap-2 scrollbar-none snap-x snap-mandatory">
+                <button
+                  onClick={() => setSelectedCategory('All')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 snap-start transition-all cursor-pointer ${
+                    selectedCategory === 'All'
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/10'
+                      : 'glass text-brand-muted hover:text-brand-text'
+                  }`}
+                >
+                  Todos
+                </button>
+                {categories.map(cat => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap shrink-0 snap-start transition-all cursor-pointer ${
+                      selectedCategory.toString() === cat.id.toString()
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/10'
+                        : 'glass text-brand-muted hover:text-brand-text'
+                    }`}
+                  >
+                    {cat.nombre}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {/* Listado de Productos */}
-            <div className="glass rounded-3xl overflow-hidden border border-white/5 shadow-2xl">
+            {/* Listado en Tarjetas Responsivas (Estilo Screen 3 de la referencia) */}
+            <div className="space-y-3.5">
               {dataLoading ? (
-                <div className="p-12 text-center text-gray-400 font-medium space-y-3">
-                  <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                  <p>Cargando información del almacén...</p>
+                <div className="py-12 text-center text-brand-muted font-medium flex flex-col items-center justify-center space-y-2">
+                  <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-xs">Sincronizando inventario...</p>
                 </div>
               ) : filteredProducts.length === 0 ? (
-                <div className="p-16 text-center text-gray-500 font-medium">
-                  No se encontraron insumos con los filtros aplicados.
+                <div className="py-16 text-center text-brand-muted text-xs glass rounded-3xl">
+                  No hay insumos registrados.
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-white/5 bg-slate-900/40 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                        <th className="px-6 py-4">Insumo</th>
-                        <th className="px-6 py-4">Categoría</th>
-                        <th className="px-6 py-4 text-right">Stock Mínimo</th>
-                        <th className="px-6 py-4 text-right">Stock Actual</th>
-                        <th className="px-6 py-4 text-center">Estado</th>
-                        <th className="px-6 py-4 text-center">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                      {filteredProducts.map(p => {
-                        const isOut = p.stock_actual === 0
-                        const isAlert = p.stock_actual <= p.stock_minimo
-                        const catName = p.categoria_nombre || categoryMap[p.categoria_id] || 'General'
-                        
-                        return (
-                          <tr key={p.id} className="hover:bg-slate-900/30 transition-colors">
-                            <td className="px-6 py-4 font-semibold text-white">{p.nombre}</td>
-                            <td className="px-6 py-4">
-                              <span className="px-2.5 py-1 rounded-full bg-slate-800 text-xs text-gray-400 font-medium">
-                                {catName}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-right text-gray-400 font-medium">
-                              {p.stock_minimo} <span className="text-[10px] text-gray-500">{p.unidad_medida}</span>
-                            </td>
-                            <td className={`px-6 py-4 text-right font-extrabold text-sm ${
-                              isOut ? 'text-red-500' : isAlert ? 'text-amber-400' : 'text-emerald-400'
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {filteredProducts.map(p => {
+                    const isOut = p.stock_actual === 0
+                    const isAlert = p.stock_actual <= p.stock_minimo
+                    const catName = p.categoria_nombre || categoryMap[p.categoria_id] || 'General'
+                    
+                    return (
+                      <div
+                        key={p.id}
+                        className="glass rounded-3xl p-5 border border-brand-border flex flex-col justify-between hover:scale-[1.01] transition-transform duration-200 relative overflow-hidden"
+                      >
+                        {/* Indicador de Alerta Extremo */}
+                        {isOut && <div className="absolute top-0 left-0 w-1.5 h-full bg-red-500 animate-pulse"></div>}
+                        {!isOut && isAlert && <div className="absolute top-0 left-0 w-1.5 h-full bg-amber-500"></div>}
+
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <span className="text-[9px] font-black uppercase text-brand-muted tracking-wider block mb-1">
+                              {catName}
+                            </span>
+                            <h3 className="text-base font-extrabold tracking-tight text-brand-text leading-tight">
+                              {p.nombre}
+                            </h3>
+                          </div>
+                          
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                            isOut 
+                              ? 'bg-red-500/10 text-red-500 border border-red-500/10' 
+                              : isAlert 
+                                ? 'bg-amber-500/10 text-amber-500 border border-amber-500/10' 
+                                : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/10'
+                          }`}>
+                            {isOut ? 'Agotado' : isAlert ? 'Bajo' : 'Suficiente'}
+                          </span>
+                        </div>
+
+                        {/* Detalle Stock Visual Grande */}
+                        <div className="my-4.5 flex items-baseline justify-between border-t border-b border-brand-border/40 py-2.5">
+                          <div>
+                            <span className="text-[9px] text-brand-muted font-bold uppercase tracking-wider block">Min. Control</span>
+                            <span className="text-xs font-semibold text-brand-muted">
+                              {p.stock_minimo} <span className="text-[10px] font-normal">{p.unidad_medida}</span>
+                            </span>
+                          </div>
+                          
+                          <div className="text-right">
+                            <span className="text-[9px] text-brand-muted font-bold uppercase tracking-wider block">Stock Disponible</span>
+                            <span className={`text-xl font-black ${
+                              isOut ? 'text-red-500' : isAlert ? 'text-amber-500' : 'text-emerald-500'
                             }`}>
-                              {p.stock_actual} <span className="text-[10px] font-semibold text-gray-500">{p.unidad_medida}</span>
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <span className={`inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-                                isOut 
-                                  ? 'bg-red-500/10 text-red-500 border border-red-500/20' 
-                                  : isAlert 
-                                    ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' 
-                                    : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                              }`}>
-                                <span className={`w-1.5 h-1.5 rounded-full bg-current ${isOut ? 'animate-ping' : ''}`}></span>
-                                <span>{isOut ? 'Agotado' : isAlert ? 'Reabastecer' : 'Suficiente'}</span>
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <div className="inline-flex items-center space-x-2">
-                                <button
-                                  onClick={() => {
-                                    setSelectedProductForMov(p.id)
-                                    setMovementType('Entrada')
-                                    setShowMovementModal(true)
-                                  }}
-                                  className="px-2.5 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 font-bold text-xs transition-all flex items-center space-x-1"
-                                >
-                                  <span>+</span> <span>Entrada</span>
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setSelectedProductForMov(p.id)
-                                    setMovementType('Salida')
-                                    setShowMovementModal(true)
-                                  }}
-                                  className={`px-2.5 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 font-bold text-xs transition-all flex items-center space-x-1 ${isOut ? 'opacity-40 cursor-not-allowed' : ''}`}
-                                  disabled={isOut}
-                                >
-                                  <span>-</span> <span>Salida</span>
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
+                              {p.stock_actual} <span className="text-xs font-medium text-brand-muted">{p.unidad_medida}</span>
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Botones de Acción Ergonómicos e Inmutables */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setSelectedProductForMov(p.id)
+                              setMovementType('Entrada')
+                              setShowMovementModal(true)
+                            }}
+                            className="flex-1 h-10 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 border border-emerald-500/20 text-xs font-bold tracking-wider transition-all flex items-center justify-center space-x-1 cursor-pointer"
+                          >
+                            <span>+ Entrada</span>
+                          </button>
+                          
+                          <button
+                            onClick={() => {
+                              setSelectedProductForMov(p.id)
+                              setMovementType('Salida')
+                              setShowMovementModal(true)
+                            }}
+                            className={`flex-1 h-10 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 text-xs font-bold tracking-wider transition-all flex items-center justify-center space-x-1 cursor-pointer ${isOut ? 'opacity-40 cursor-not-allowed' : ''}`}
+                            disabled={isOut}
+                          >
+                            <span>- Salida</span>
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* TAB 2: ALERTAS DE REABASTECIMIENTO */}
+        {/* TAB 2: ALERTAS (LISTA DE COMPRAS) */}
         {activeTab === 'alertas' && (
-          <div className="space-y-6 animate-fade-in">
+          <div className="space-y-4 animate-fade-in">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-bold text-white">Lista de Reabastecimiento</h2>
-                <p className="text-sm text-gray-400">Todos los insumos por debajo del umbral mínimo de seguridad.</p>
+                <h2 className="text-lg font-extrabold tracking-tight">Abastecimiento Requerido</h2>
+                <p className="text-[10px] text-brand-muted font-semibold tracking-wide uppercase mt-0.5">Generador Automático de Pedido</p>
               </div>
+              
               {alertProducts.length > 0 && (
                 <button
                   onClick={copyShoppingList}
-                  className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-white/5 text-gray-200 font-semibold rounded-xl text-xs transition-all flex items-center space-x-2"
+                  className="px-3.5 py-2 glass hover:bg-brand-border border border-brand-border text-brand-text font-bold rounded-xl text-xs transition-all flex items-center space-x-1.5 cursor-pointer"
                 >
-                  <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                  <svg className="w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
-                  <span>Copiar Lista de Compras</span>
+                  <span>Copiar Pedido</span>
                 </button>
               )}
             </div>
 
-            <div className="glass rounded-3xl overflow-hidden border border-white/5 shadow-2xl">
+            <div className="space-y-3">
               {alertProducts.length === 0 ? (
-                <div className="p-16 text-center text-emerald-400 font-medium space-y-2">
-                  <svg className="w-12 h-12 mx-auto text-emerald-500/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <p className="text-lg">Todo al día</p>
-                  <p className="text-xs text-gray-400">No hay insumos bajo el umbral mínimo de stock.</p>
+                <div className="py-16 text-center text-brand-text font-semibold text-sm glass rounded-3xl flex flex-col items-center justify-center space-y-2">
+                  <span className="text-3xl">🎉</span>
+                  <p>¡Inventario al día!</p>
+                  <p className="text-[10px] text-brand-muted font-normal">Todos los insumos se encuentran por encima del mínimo.</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-white/5 bg-slate-900/40 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                        <th className="px-6 py-4">Insumo</th>
-                        <th className="px-6 py-4">Categoría</th>
-                        <th className="px-6 py-4 text-right">Stock Mínimo</th>
-                        <th className="px-6 py-4 text-right">Stock Actual</th>
-                        <th className="px-6 py-4 text-right">Faltante Estimado</th>
-                        <th className="px-6 py-4 text-center">Gravedad</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                      {alertProducts.map(p => {
-                        const isOut = p.stock_actual === 0
-                        const deficit = Math.max(0, p.stock_minimo - p.stock_actual)
-                        const catName = p.categoria_nombre || categoryMap[p.categoria_id] || 'General'
-                        
-                        return (
-                          <tr key={p.id} className="hover:bg-slate-900/30 transition-colors">
-                            <td className="px-6 py-4 font-semibold text-white">{p.nombre}</td>
-                            <td className="px-6 py-4">
-                              <span className="px-2.5 py-1 rounded-full bg-slate-800 text-xs text-gray-400 font-medium">
-                                {catName}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-right text-gray-400 font-medium">
-                              {p.stock_minimo} <span className="text-[10px] text-gray-500">{p.unidad_medida}</span>
-                            </td>
-                            <td className={`px-6 py-4 text-right font-extrabold text-sm ${
-                              isOut ? 'text-red-500' : 'text-amber-400'
-                            }`}>
-                              {p.stock_actual} <span className="text-[10px] font-semibold text-gray-500">{p.unidad_medida}</span>
-                            </td>
-                            <td className="px-6 py-4 text-right font-extrabold text-blue-400 text-sm">
-                              {deficit} <span className="text-[10px] font-semibold text-gray-500">{p.unidad_medida}</span>
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <span className={`inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold ${
-                                isOut 
-                                  ? 'bg-red-500/10 text-red-500 border border-red-500/20 animate-pulse' 
-                                  : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                              }`}>
-                                <span>{isOut ? 'Crítico (Agotado)' : 'Advertencia (Bajo)'}</span>
-                              </span>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                alertProducts.map(p => {
+                  const isOut = p.stock_actual === 0
+                  const deficit = Math.max(0, p.stock_minimo - p.stock_actual)
+                  const catName = p.categoria_nombre || categoryMap[p.categoria_id] || 'General'
+                  
+                  return (
+                    <div
+                      key={p.id}
+                      className="glass rounded-2.5xl p-4 border border-brand-border flex items-center justify-between relative overflow-hidden"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div className={`w-2 h-2 rounded-full ${isOut ? 'bg-red-500 animate-ping' : 'bg-amber-500'}`}></div>
+                        <div>
+                          <span className="text-[8px] font-bold text-brand-muted block uppercase tracking-wider">{catName}</span>
+                          <h4 className="text-sm font-extrabold text-brand-text leading-tight">{p.nombre}</h4>
+                          <span className="text-[10px] text-brand-muted font-medium">
+                            Stock: {p.stock_actual} / Mínimo: {p.stock_minimo} {p.unidad_medida}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="text-right">
+                        <span className="text-[8px] font-black text-blue-500 block uppercase tracking-wider">Faltante</span>
+                        <span className="text-lg font-black text-blue-500">
+                          {deficit} <span className="text-xs font-semibold text-brand-muted">{p.unidad_medida}</span>
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })
               )}
             </div>
           </div>
         )}
 
-        {/* TAB 3: HISTORIAL DE MOVIMIENTOS (AUDITORÍA) */}
+        {/* TAB 3: AUDITORÍA DE MOVIMIENTOS */}
         {activeTab === 'historial' && (
-          <div className="space-y-6 animate-fade-in">
+          <div className="space-y-4 animate-fade-in">
             <div>
-              <h2 className="text-xl font-bold text-white">Registro de Auditoría</h2>
-              <p className="text-sm text-gray-400">Historial completo e inmutable de entradas y salidas de inventario.</p>
+              <h2 className="text-lg font-extrabold tracking-tight">Bitácora de Auditoría</h2>
+              <p className="text-[10px] text-brand-muted font-semibold tracking-wide uppercase mt-0.5">Historial Inmutable de Operaciones</p>
             </div>
 
-            <div className="glass rounded-3xl overflow-hidden border border-white/5 shadow-2xl">
+            <div className="space-y-3.5">
               {movements.length === 0 ? (
-                <div className="p-16 text-center text-gray-500 font-medium">
-                  Aún no se han registrado movimientos de inventario.
+                <div className="py-16 text-center text-brand-muted text-xs glass rounded-3xl">
+                  No hay transacciones registradas.
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-white/5 bg-slate-900/40 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
-                        <th className="px-6 py-4">Fecha y Hora</th>
-                        <th className="px-6 py-4">Insumo</th>
-                        <th className="px-6 py-4 text-center">Operación</th>
-                        <th className="px-6 py-4 text-right">Cantidad</th>
-                        <th className="px-6 py-4">Usuario Responsable</th>
-                        <th className="px-6 py-4">Motivo / Detalle</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                      {movements.map(m => {
-                        const date = new Date(m.creado_en)
-                        const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                        const isSalida = m.tipo === 'Salida'
-                        const prodName = m.producto_nombre || (products.find(p => p.id === m.producto_id)?.nombre) || 'Desconocido'
-                        const unit = m.unidad_medida || (products.find(p => p.id === m.producto_id)?.unidad_medida) || ''
+                movements.map(m => {
+                  const date = new Date(m.creado_en)
+                  const formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  const isSalida = m.tipo === 'Salida'
+                  const prodName = m.producto_nombre || (products.find(p => p.id === m.producto_id)?.nombre) || 'Insumo'
+                  const unit = m.unidad_medida || (products.find(p => p.id === m.producto_id)?.unidad_medida) || ''
+                  
+                  return (
+                    <div
+                      key={m.id}
+                      className="glass rounded-2.5xl p-4 border border-brand-border flex flex-col justify-between"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <span className="text-[9px] text-brand-muted font-bold block">{formattedDate}</span>
+                          <h4 className="text-sm font-extrabold text-brand-text mt-0.5">{prodName}</h4>
+                        </div>
                         
-                        return (
-                          <tr key={m.id} className="hover:bg-slate-900/30 transition-colors">
-                            <td className="px-6 py-4 text-xs font-semibold text-gray-400 whitespace-nowrap">{formattedDate}</td>
-                            <td className="px-6 py-4 font-semibold text-white">{prodName}</td>
-                            <td className="px-6 py-4 text-center">
-                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
-                                isSalida 
-                                  ? 'bg-red-500/10 text-red-500 border border-red-500/20' 
-                                  : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                              }`}>
-                                {isSalida ? 'Salida (-)' : 'Entrada (+)'}
-                              </span>
-                            </td>
-                            <td className={`px-6 py-4 text-right font-extrabold text-sm ${
-                              isSalida ? 'text-red-400' : 'text-emerald-400'
-                            }`}>
-                              {isSalida ? '-' : '+'}{m.cantidad} <span className="text-[10px] font-semibold text-gray-500">{unit}</span>
-                            </td>
-                            <td className="px-6 py-4 text-xs font-semibold text-gray-300">
-                              {m.usuario_email || 'anonimo@nexus.com'}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-400 italic max-w-xs truncate" title={m.motivo}>
-                              {m.motivo}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                          isSalida 
+                            ? 'bg-red-500/10 text-red-500 border border-red-500/10' 
+                            : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/10'
+                        }`}>
+                          {isSalida ? 'Salida' : 'Entrada'}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between border-t border-brand-border/40 pt-2 text-xs">
+                        <div>
+                          <span className="text-[9px] text-brand-muted block">Responsable</span>
+                          <span className="font-semibold text-brand-text">{m.usuario_email || 'chef.demo@nexus.com'}</span>
+                        </div>
+                        
+                        <div className="text-right">
+                          <span className="text-[9px] text-brand-muted block">Cantidad</span>
+                          <span className={`font-black text-sm ${isSalida ? 'text-red-500' : 'text-emerald-500'}`}>
+                            {isSalida ? '-' : '+'}{m.cantidad} <span className="text-xs font-normal text-brand-muted">{unit}</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="mt-2 text-xs bg-slate-500/5 p-2 rounded-xl border border-brand-border/30">
+                        <span className="text-[9px] text-brand-muted block font-bold uppercase tracking-wider">Motivo</span>
+                        <p className="text-brand-muted italic mt-0.5">{m.motivo}</p>
+                      </div>
+                    </div>
+                  )
+                })
               )}
             </div>
           </div>
         )}
       </main>
 
-      {/* --- MODAL: REGISTRAR MOVIMIENTO --- */}
+      {/* --- BOTÓN DE ACCIÓN FLOTANTE (FAB) --- */}
+      {activeTab === 'dashboard' && !showProductModal && !showMovementModal && (
+        <button
+          onClick={() => setShowProductModal(true)}
+          className="fixed bottom-20 md:bottom-6 right-6 w-14 h-14 bg-blue-600 hover:bg-blue-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20 active:scale-95 transition-all z-40 border border-blue-400/20 cursor-pointer"
+          title="Agregar Insumo"
+        >
+          <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      )}
+
+      {/* --- NAVEGACIÓN MÓVIL INFERIOR (Bottom Bar - Solo Móviles) --- */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 glass border-t border-brand-border flex items-center justify-around z-40 px-2 shadow-2xl">
+        <button
+          onClick={() => setActiveTab('dashboard')}
+          className={`flex flex-col items-center justify-center w-16 h-full transition-all cursor-pointer ${
+            activeTab === 'dashboard' ? 'text-blue-500 scale-105' : 'text-brand-muted'
+          }`}
+        >
+          <svg className="w-5.5 h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === 'dashboard' ? 2.5 : 2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z" />
+          </svg>
+          <span className="text-[8px] font-black uppercase tracking-wider mt-0.5">Almacén</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('alertas')}
+          className={`flex flex-col items-center justify-center w-16 h-full transition-all relative cursor-pointer ${
+            activeTab === 'alertas' ? 'text-amber-500 scale-105' : 'text-brand-muted'
+          }`}
+        >
+          {metrics.alerts > 0 && (
+            <span className="absolute top-2 right-4 w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+          )}
+          <svg className="w-5.5 h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === 'alertas' ? 2.5 : 2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span className="text-[8px] font-black uppercase tracking-wider mt-0.5">Alertas</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('historial')}
+          className={`flex flex-col items-center justify-center w-16 h-full transition-all cursor-pointer ${
+            activeTab === 'historial' ? 'text-purple-500 scale-105' : 'text-brand-muted'
+          }`}
+        >
+          <svg className="w-5.5 h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === 'historial' ? 2.5 : 2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span className="text-[8px] font-black uppercase tracking-wider mt-0.5">Auditoría</span>
+        </button>
+      </nav>
+
+      {/* --- BOTTOM SHEET / MODAL: REGISTRAR MOVIMIENTO (Ergonómico Móvil) --- */}
       {showMovementModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md glass rounded-3xl p-6 border border-white/10 shadow-2xl relative animate-slide-up">
-            <h3 className="text-xl font-bold text-white mb-4">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+          {/* Backdrop click close */}
+          <div className="absolute inset-0 cursor-default" onClick={() => { setShowMovementModal(false); resetMovementForm(); }}></div>
+          
+          <div className="w-full md:max-w-md bg-brand-bg md:rounded-3xl rounded-t-[2.5rem] p-6 border-t md:border border-brand-border shadow-2xl relative z-10 animate-bottom-sheet md:animate-slide-up pb-10 md:pb-6">
+            
+            {/* Mobile Drag Handle */}
+            <div className="md:hidden w-12 h-1.5 bg-brand-border rounded-full mx-auto mb-5"></div>
+            
+            <h3 className="text-lg font-extrabold text-brand-text mb-4">
               Registrar {movementType === 'Entrada' ? 'Entrada (+)' : 'Salida (-)'}
             </h3>
 
             {selectedProductForMov && (
-              <div className="mb-4 p-3 bg-slate-900/60 rounded-xl border border-white/5 flex items-center justify-between">
+              <div className="mb-4.5 p-3.5 bg-brand-card rounded-2xl border border-brand-border flex items-center justify-between">
                 <div>
-                  <span className="text-xs text-gray-500 block">Insumo</span>
-                  <span className="text-sm font-bold text-white">
+                  <span className="text-[9px] text-brand-muted font-bold block">Insumo</span>
+                  <span className="text-sm font-extrabold text-brand-text">
                     {products.find(p => p.id === selectedProductForMov)?.nombre}
                   </span>
                 </div>
                 <div className="text-right">
-                  <span className="text-xs text-gray-500 block">Stock Disponible</span>
-                  <span className="text-sm font-bold text-blue-400">
+                  <span className="text-[9px] text-brand-muted font-bold block">Stock Disponible</span>
+                  <span className="text-sm font-extrabold text-blue-500">
                     {products.find(p => p.id === selectedProductForMov)?.stock_actual} {products.find(p => p.id === selectedProductForMov)?.unidad_medida}
                   </span>
                 </div>
@@ -1089,7 +1114,7 @@ export default function App() {
 
             <form onSubmit={handleRegisterMovement} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Cantidad</label>
+                <label className="block text-[10px] font-bold text-brand-muted uppercase tracking-wider mb-2 ml-1">Cantidad a registrar</label>
                 <div className="relative">
                   <input
                     type="number"
@@ -1097,27 +1122,27 @@ export default function App() {
                     value={movementQty}
                     onChange={(e) => setMovementQty(e.target.value)}
                     placeholder="0.00"
-                    className="w-full px-4 py-3 rounded-xl bg-slate-900/60 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm"
+                    className="w-full px-4 py-3 rounded-2xl bg-brand-card border border-brand-border text-brand-text placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 text-sm h-12"
                   />
-                  <span className="absolute right-4 top-3 text-xs font-bold text-gray-500">
+                  <span className="absolute right-4 top-3.5 text-xs font-bold text-brand-muted">
                     {products.find(p => p.id === selectedProductForMov)?.unidad_medida}
                   </span>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Motivo / Justificación</label>
+                <label className="block text-[10px] font-bold text-brand-muted uppercase tracking-wider mb-2 ml-1">Detalle / Motivo</label>
                 <textarea
                   value={movementReason}
                   onChange={(e) => setMovementReason(e.target.value)}
-                  placeholder={movementType === 'Entrada' ? 'Ej: Recepción del proveedor, Factura #101' : 'Ej: Mermas, preparación de 150 almuerzos'}
+                  placeholder={movementType === 'Entrada' ? 'Ej: Recepción proveedor, Factura #90' : 'Ej: Almuerzo diario, merma'}
                   rows="3"
-                  className="w-full px-4 py-3 rounded-xl bg-slate-900/60 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm"
+                  className="w-full px-4 py-3 rounded-2xl bg-brand-card border border-brand-border text-brand-text placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 text-sm"
                 />
               </div>
 
               {movementError && (
-                <div className="p-3 bg-red-950/40 border border-red-500/30 rounded-xl text-xs text-red-400">
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400">
                   {movementError}
                 </div>
               )}
@@ -1129,19 +1154,19 @@ export default function App() {
                     setShowMovementModal(false)
                     resetMovementForm()
                   }}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-gray-300 font-semibold text-xs transition-all border border-white/5"
+                  className="px-4 h-11 rounded-xl btn-secondary font-bold text-xs transition-all cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className={`px-5 py-2.5 rounded-xl text-white font-semibold text-xs transition-all shadow-lg flex items-center space-x-2 ${
+                  className={`px-5 h-11 rounded-xl text-white font-bold text-xs transition-all shadow-md flex items-center justify-center space-x-1 cursor-pointer ${
                     movementType === 'Entrada' 
-                      ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20' 
-                      : 'bg-red-600 hover:bg-red-500 shadow-red-900/20'
+                      ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/10' 
+                      : 'bg-red-600 hover:bg-red-500 shadow-red-500/10'
                   }`}
                 >
-                  <span>Registrar Movimiento</span>
+                  <span>Procesar</span>
                 </button>
               </div>
             </form>
@@ -1149,33 +1174,38 @@ export default function App() {
         </div>
       )}
 
-      {/* --- MODAL: NUEVO INSUMO --- */}
+      {/* --- BOTTOM SHEET / MODAL: NUEVO INSUMO --- */}
       {showProductModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-          <div className="w-full max-w-md glass rounded-3xl p-6 border border-white/10 shadow-2xl relative animate-slide-up">
-            <h3 className="text-xl font-bold text-white mb-4">
+        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+          <div className="absolute inset-0 cursor-default" onClick={() => { setShowProductModal(false); resetProductForm(); }}></div>
+          
+          <div className="w-full md:max-w-md bg-brand-bg md:rounded-3xl rounded-t-[2.5rem] p-6 border-t md:border border-brand-border shadow-2xl relative z-10 animate-bottom-sheet md:animate-slide-up pb-10 md:pb-6">
+            
+            <div className="md:hidden w-12 h-1.5 bg-brand-border rounded-full mx-auto mb-5"></div>
+            
+            <h3 className="text-lg font-extrabold text-brand-text mb-4">
               Registrar Nuevo Insumo
             </h3>
 
             <form onSubmit={handleCreateProduct} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Nombre del Insumo</label>
+                <label className="block text-[10px] font-bold text-brand-muted uppercase tracking-wider mb-2 ml-1">Nombre del Insumo</label>
                 <input
                   type="text"
                   value={newProductName}
                   onChange={(e) => setNewProductName(e.target.value)}
-                  placeholder="Ej: Harina de Trigo, Carne Molida"
-                  className="w-full px-4 py-3 rounded-xl bg-slate-900/60 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm"
+                  placeholder="Ej: Harina de Trigo, Cilantro"
+                  className="w-full px-4 py-3 rounded-2xl bg-brand-card border border-brand-border text-brand-text placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 text-sm h-12"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Categoría</label>
+                  <label className="block text-[10px] font-bold text-brand-muted uppercase tracking-wider mb-2 ml-1">Categoría</label>
                   <select
                     value={newProductCategory}
                     onChange={(e) => setNewProductCategory(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-900/60 border border-white/10 text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 text-sm cursor-pointer"
+                    className="w-full px-4 py-3 rounded-2xl bg-brand-card border border-brand-border text-brand-text focus:outline-none focus:ring-2 focus:ring-blue-500/40 text-xs h-12 cursor-pointer"
                   >
                     <option value="">Seleccionar...</option>
                     {categories.map(c => (
@@ -1185,11 +1215,11 @@ export default function App() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Unidad de Medida</label>
+                  <label className="block text-[10px] font-bold text-brand-muted uppercase tracking-wider mb-2 ml-1">Métrica (Unidad)</label>
                   <select
                     value={newProductUnit}
                     onChange={(e) => setNewProductUnit(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-slate-900/60 border border-white/10 text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 text-sm cursor-pointer"
+                    className="w-full px-4 py-3 rounded-2xl bg-brand-card border border-brand-border text-brand-text focus:outline-none focus:ring-2 focus:ring-blue-500/40 text-xs h-12 cursor-pointer"
                   >
                     <option value="kg">kg</option>
                     <option value="g">g</option>
@@ -1203,26 +1233,26 @@ export default function App() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Stock Mínimo (Umbral)</label>
+                <label className="block text-[10px] font-bold text-brand-muted uppercase tracking-wider mb-2 ml-1">Límite de Alerta (Stock Mínimo)</label>
                 <input
                   type="number"
                   step="any"
                   value={newProductMinStock}
                   onChange={(e) => setNewProductMinStock(e.target.value)}
                   placeholder="Ej: 10.00"
-                  className="w-full px-4 py-3 rounded-xl bg-slate-900/60 border border-white/10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm"
+                  className="w-full px-4 py-3 rounded-2xl bg-brand-card border border-brand-border text-brand-text placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 text-sm h-12"
                 />
               </div>
 
-              <div className="p-3 bg-blue-950/20 border border-blue-500/20 rounded-xl text-[11px] text-blue-400 flex items-start space-x-2">
-                <svg className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <div className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-2xl text-[10px] text-blue-500 font-semibold flex items-start space-x-2 leading-snug">
+                <svg className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span>Por regla de negocio, el stock inicial se crea en **0**. Deberás registrar un movimiento de entrada para subir el stock de este nuevo insumo.</span>
+                <span>Por integridad, el stock inicia en 0. Para dotar de insumos al nuevo registro, efectúa una Entrada (+).</span>
               </div>
 
               {newProductError && (
-                <div className="p-3 bg-red-950/40 border border-red-500/30 rounded-xl text-xs text-red-400">
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400">
                   {newProductError}
                 </div>
               )}
@@ -1234,15 +1264,15 @@ export default function App() {
                     setShowProductModal(false)
                     resetProductForm()
                   }}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-gray-300 font-semibold text-xs transition-all border border-white/5"
+                  className="px-4 h-11 rounded-xl btn-secondary font-bold text-xs transition-all cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-all shadow-lg shadow-blue-900/20"
+                  className="px-5 h-11 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all shadow-md shadow-blue-500/10 cursor-pointer"
                 >
-                  Crear Producto
+                  Crear Insumo
                 </button>
               </div>
             </form>

@@ -2,38 +2,82 @@
 
 @import "tailwindcss";
 
+:root {
+  /* MODO BLANCO / CLARO */
+  --bg-color: #f1f5f9;
+  --bg-image: 
+    radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.06) 0px, transparent 50%);
+  --card-bg: rgba(255, 255, 255, 0.85);
+  --card-border: rgba(15, 23, 42, 0.06);
+  --text-main: #0f172a;
+  --text-muted: #475569;
+  --shadow-color: rgba(15, 23, 42, 0.05);
+  --btn-secondary: rgba(15, 23, 42, 0.05);
+  --btn-secondary-hover: rgba(15, 23, 42, 0.08);
+}
+
+.dark {
+  /* MODO OSCURO PREMIUM */
+  --bg-color: #0b0d19;
+  --bg-image: 
+    radial-gradient(at 0% 0%, rgba(29, 78, 216, 0.18) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(124, 58, 237, 0.12) 0px, transparent 50%);
+  --card-bg: rgba(20, 26, 48, 0.65);
+  --card-border: rgba(255, 255, 255, 0.06);
+  --text-main: #f3f4f6;
+  --text-muted: #9ca3af;
+  --shadow-color: rgba(0, 0, 0, 0.4);
+  --btn-secondary: rgba(255, 255, 255, 0.05);
+  --btn-secondary-hover: rgba(255, 255, 255, 0.08);
+}
+
 @theme {
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  --color-brand-bg: #090d16;
-  --color-brand-card: rgba(17, 25, 40, 0.65);
-  --color-brand-border: rgba(255, 255, 255, 0.08);
+  --color-brand-bg: var(--bg-color);
+  --color-brand-card: var(--card-bg);
+  --color-brand-border: var(--card-border);
+  --color-brand-text: var(--text-main);
+  --color-brand-muted: var(--text-muted);
 }
 
 body {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-  background-color: var(--color-brand-bg);
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(29, 78, 216, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(124, 58, 237, 0.12) 0px, transparent 50%);
+  background-color: var(--bg-color);
+  background-image: var(--bg-image);
   background-attachment: fixed;
-  color: #f3f4f6;
+  color: var(--text-main);
   margin: 0;
   overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Glassmorphism custom styling utilities */
 .glass {
-  background: var(--color-brand-card);
+  background: var(--card-bg);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--color-brand-border);
+  border: 1px solid var(--card-border);
+  box-shadow: var(--shadow-color) 0px 10px 30px -3px, var(--shadow-color) 0px 4px 6px -2px;
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .glass-header {
-  background: rgba(9, 13, 22, 0.8);
+  background: rgba(var(--bg-color), 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--color-brand-border);
+  border-bottom: 1px solid var(--card-border);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Botón secundario adaptable al tema */
+.btn-secondary {
+  background-color: var(--btn-secondary);
+  border: 1px solid var(--card-border);
+  color: var(--text-main);
+}
+.btn-secondary:hover {
+  background-color: var(--btn-secondary-hover);
 }
 
 /* Custom scrollbar */
@@ -42,10 +86,10 @@ body {
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #090d16;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: var(--card-border);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
@@ -56,7 +100,7 @@ body {
 @keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(24px);
   }
   to {
     opacity: 1;
@@ -68,6 +112,19 @@ body {
   animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@keyframes slideUpSheet {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-bottom-sheet {
+  animation: slideUpSheet 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -75,4 +132,9 @@ body {
 
 .animate-fade-in {
   animation: fadeIn 0.4s ease-out forwards;
+}
+
+/* Soft shadows for cards matching reference */
+.soft-shadow {
+  box-shadow: var(--shadow-color) 0px 8px 30px;
 }
