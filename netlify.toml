@@ -1,0 +1,7 @@
+# Configuración de Netlify para SPA (React / Vite)
+# Asegura que las rutas internas se redirijan correctamente a index.html
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
