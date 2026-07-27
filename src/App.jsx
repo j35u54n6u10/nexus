@@ -80,6 +80,7 @@ export default function App() {
   const [newProductUnit, setNewProductUnit] = useState('kg')
   const [newProductMinStock, setNewProductMinStock] = useState('')
   const [newProductError, setNewProductError] = useState('')
+  const [showProfileModal, setShowProfileModal] = useState(false)
 
   // Toast / Notificaciones
   const [toast, setToast] = useState(null)
@@ -1029,7 +1030,7 @@ export default function App() {
       {activeTab === 'dashboard' && !showProductModal && !showMovementModal && (
         <button
           onClick={() => setShowProductModal(true)}
-          className="fixed bottom-20 md:bottom-6 right-6 w-14 h-14 bg-blue-600 hover:bg-blue-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20 active:scale-95 transition-all z-40 border border-blue-400/20 cursor-pointer"
+          className="hidden md:flex fixed md:bottom-6 right-6 w-14 h-14 bg-blue-600 hover:bg-blue-500 text-white rounded-full items-center justify-center shadow-lg shadow-blue-500/20 active:scale-95 transition-all z-40 border border-blue-400/20 cursor-pointer"
           title="Agregar Insumo"
         >
           <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1039,45 +1040,98 @@ export default function App() {
       )}
 
       {/* --- NAVEGACIÓN MÓVIL INFERIOR (Bottom Bar - Solo Móviles) --- */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 glass border-t border-brand-border flex items-center justify-around z-40 px-2 shadow-2xl">
-        <button
-          onClick={() => setActiveTab('dashboard')}
-          className={`flex flex-col items-center justify-center w-16 h-full transition-all cursor-pointer ${
-            activeTab === 'dashboard' ? 'text-blue-500 scale-105' : 'text-brand-muted'
-          }`}
-        >
-          <svg className="w-5.5 h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === 'dashboard' ? 2.5 : 2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z" />
-          </svg>
-          <span className="text-[8px] font-black uppercase tracking-wider mt-0.5">Almacén</span>
-        </button>
+      <nav className="md:hidden fixed bottom-5 left-1/2 -translate-x-1/2 w-full max-w-[360px] z-40 px-4 filter drop-shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+        <div className="flex items-stretch h-16 relative">
+          
+          {/* Sección Izquierda */}
+          <div className="flex-1 bg-white dark:bg-brand-card rounded-l-[1.8rem] border-y border-l border-brand-border flex items-center justify-around pr-1">
+            {/* Almacén */}
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`flex flex-col items-center justify-center w-12 h-full transition-all cursor-pointer ${
+                activeTab === 'dashboard' ? 'text-blue-500 scale-105' : 'text-brand-muted hover:text-brand-text'
+              }`}
+              title="Almacén"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === 'dashboard' ? 2.5 : 2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z" />
+              </svg>
+              <span className="text-[7.5px] font-black uppercase tracking-wider mt-0.5">Almacén</span>
+            </button>
 
-        <button
-          onClick={() => setActiveTab('alertas')}
-          className={`flex flex-col items-center justify-center w-16 h-full transition-all relative cursor-pointer ${
-            activeTab === 'alertas' ? 'text-amber-500 scale-105' : 'text-brand-muted'
-          }`}
-        >
-          {metrics.alerts > 0 && (
-            <span className="absolute top-2 right-4 w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
-          )}
-          <svg className="w-5.5 h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === 'alertas' ? 2.5 : 2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          <span className="text-[8px] font-black uppercase tracking-wider mt-0.5">Alertas</span>
-        </button>
+            {/* Alertas */}
+            <button
+              onClick={() => setActiveTab('alertas')}
+              className={`flex flex-col items-center justify-center w-12 h-full transition-all relative cursor-pointer ${
+                activeTab === 'alertas' ? 'text-amber-500 scale-105' : 'text-brand-muted hover:text-brand-text'
+              }`}
+              title="Alertas"
+            >
+              {metrics.alerts > 0 && (
+                <span className="absolute top-2.5 right-2 w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
+              )}
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === 'alertas' ? 2.5 : 2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <span className="text-[7.5px] font-black uppercase tracking-wider mt-0.5">Alertas</span>
+            </button>
+          </div>
 
-        <button
-          onClick={() => setActiveTab('historial')}
-          className={`flex flex-col items-center justify-center w-16 h-full transition-all cursor-pointer ${
-            activeTab === 'historial' ? 'text-purple-500 scale-105' : 'text-brand-muted'
-          }`}
-        >
-          <svg className="w-5.5 h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === 'historial' ? 2.5 : 2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <span className="text-[8px] font-black uppercase tracking-wider mt-0.5">Auditoría</span>
-        </button>
+          {/* Sección Central (SVG Notch) */}
+          <div className="w-20 h-16 relative shrink-0 -mx-[1px] bg-transparent">
+            <svg className="w-full h-full text-white dark:text-brand-card fill-current" viewBox="0 0 80 64" preserveAspectRatio="none">
+              {/* Notch shape */}
+              <path d="M 0,0 C 12,0 12,12 18,18 A 22,22 0 0,0 62,18 C 68,12 68,0 80,0 L 80,64 L 0,64 Z" />
+              {/* Border path */}
+              <path d="M 0,0 C 12,0 12,12 18,18 A 22,22 0 0,0 62,18 C 68,12 68,0 80,0" fill="none" stroke="rgba(15,23,42,0.06)" className="stroke-brand-border" strokeWidth="1" />
+              {/* Bottom line */}
+              <line x1="0" y1="64" x2="80" y2="64" stroke="rgba(15,23,42,0.06)" className="stroke-brand-border" strokeWidth="1" />
+            </svg>
+
+            {/* Central Floating Button */}
+            <button
+              onClick={() => setShowProductModal(true)}
+              className="absolute -top-4.5 left-1/2 -translate-x-1/2 w-13 h-13 bg-gradient-to-tr from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 text-white rounded-full flex items-center justify-center shadow-lg shadow-blue-500/30 active:scale-95 hover:scale-105 transition-all z-50 border border-blue-400/20 cursor-pointer"
+              title="Agregar Insumo"
+            >
+              <svg className="w-6.5 h-6.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Sección Derecha */}
+          <div className="flex-1 bg-white dark:bg-brand-card rounded-r-[1.8rem] border-y border-r border-brand-border flex items-center justify-around pl-1">
+            {/* Auditoría */}
+            <button
+              onClick={() => setActiveTab('historial')}
+              className={`flex flex-col items-center justify-center w-12 h-full transition-all cursor-pointer ${
+                activeTab === 'historial' ? 'text-purple-500 scale-105' : 'text-brand-muted hover:text-brand-text'
+              }`}
+              title="Auditoría"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={activeTab === 'historial' ? 2.5 : 2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span className="text-[7.5px] font-black uppercase tracking-wider mt-0.5">Auditoría</span>
+            </button>
+
+            {/* Ajustes / Perfil */}
+            <button
+              onClick={() => setShowProfileModal(true)}
+              className={`flex flex-col items-center justify-center w-12 h-full transition-all cursor-pointer ${
+                showProfileModal ? 'text-blue-500 scale-105' : 'text-brand-muted hover:text-brand-text'
+              }`}
+              title="Mi Perfil"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+              </svg>
+              <span className="text-[7.5px] font-black uppercase tracking-wider mt-0.5">Perfil</span>
+            </button>
+          </div>
+
+        </div>
       </nav>
 
       {/* --- BOTTOM SHEET / MODAL: REGISTRAR MOVIMIENTO (Ergonómico Móvil) --- */}
@@ -1276,6 +1330,81 @@ export default function App() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- BOTTOM SHEET / MODAL: PERFIL / AJUSTES (Móvil) --- */}
+      {showProfileModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+          {/* Click outside to close */}
+          <div className="absolute inset-0 cursor-default" onClick={() => setShowProfileModal(false)}></div>
+          
+          <div className="w-full max-w-md bg-brand-bg rounded-t-[2.5rem] p-6 border-t border-brand-border shadow-2xl relative z-10 animate-bottom-sheet pb-10">
+            {/* Mobile Drag Handle */}
+            <div className="w-12 h-1.5 bg-brand-border rounded-full mx-auto mb-6"></div>
+            
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-blue-500/10 rounded-full mx-auto flex items-center justify-center mb-3 border border-blue-500/20">
+                <svg className="w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-extrabold text-brand-text">Mi Cuenta</h3>
+              <p className="text-brand-muted text-xs font-semibold mt-0.5">{user?.email}</p>
+            </div>
+
+            <div className="space-y-4">
+              {/* Info Card */}
+              <div className="p-4 bg-brand-card rounded-2xl border border-brand-border flex items-center justify-between text-sm">
+                <div>
+                  <span className="text-[10px] text-brand-muted font-bold block uppercase tracking-wider">Estado de Conexión</span>
+                  <span className="font-extrabold text-brand-text mt-0.5 block">
+                    {isDemoMode ? 'Demostración Local' : 'Conectado a Supabase'}
+                  </span>
+                </div>
+                <span className={`w-2.5 h-2.5 rounded-full ${isDemoMode ? 'bg-amber-500' : 'bg-emerald-500'} animate-pulse`}></span>
+              </div>
+
+              {/* Tema Toggle Option */}
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="w-full p-4 bg-brand-card hover:bg-brand-card/85 active:scale-[0.99] transition-all rounded-2xl border border-brand-border flex items-center justify-between text-sm text-left cursor-pointer"
+              >
+                <div>
+                  <span className="text-[10px] text-brand-muted font-bold block uppercase tracking-wider">Tema de Interfaz</span>
+                  <span className="font-extrabold text-brand-text mt-0.5 block">
+                    {theme === 'dark' ? 'Modo Oscuro' : 'Modo Claro'}
+                  </span>
+                </div>
+                <span className="text-lg">{theme === 'dark' ? '🌙' : '☀️'}</span>
+              </button>
+
+              {/* Cerrar Sesión Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowProfileModal(false);
+                  handleLogout();
+                }}
+                className="w-full py-4.5 bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all text-sm font-extrabold rounded-2xl flex items-center justify-center space-x-2 cursor-pointer mt-4"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span>Cerrar Sesión</span>
+              </button>
+
+              {/* Cerrar Sheet Button */}
+              <button
+                type="button"
+                onClick={() => setShowProfileModal(false)}
+                className="w-full py-3.5 bg-brand-border/20 text-brand-text font-bold rounded-2xl text-xs transition-all flex items-center justify-center cursor-pointer mt-2"
+              >
+                Volver
+              </button>
+            </div>
           </div>
         </div>
       )}

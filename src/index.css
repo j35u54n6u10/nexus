@@ -5,7 +5,7 @@
 :root {
   /* MODO BLANCO / CLARO */
   --bg-color: #f1f5f9;
-  --bg-image: 
+  --bg-image:
     radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.08) 0px, transparent 50%),
     radial-gradient(at 100% 100%, rgba(99, 102, 241, 0.06) 0px, transparent 50%);
   --card-bg: rgba(255, 255, 255, 0.85);
@@ -20,7 +20,7 @@
 .dark {
   /* MODO OSCURO PREMIUM */
   --bg-color: #0b0d19;
-  --bg-image: 
+  --bg-image:
     radial-gradient(at 0% 0%, rgba(29, 78, 216, 0.18) 0px, transparent 50%),
     radial-gradient(at 100% 100%, rgba(124, 58, 237, 0.12) 0px, transparent 50%);
   --card-bg: rgba(20, 26, 48, 0.65);
@@ -76,6 +76,7 @@ body {
   border: 1px solid var(--card-border);
   color: var(--text-main);
 }
+
 .btn-secondary:hover {
   background-color: var(--btn-secondary-hover);
 }
@@ -85,13 +86,16 @@ body {
   width: 8px;
   height: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--card-border);
   border-radius: 9999px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: #3b82f6;
 }
@@ -102,6 +106,7 @@ body {
     opacity: 0;
     transform: translateY(24px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -116,6 +121,7 @@ body {
   from {
     transform: translateY(100%);
   }
+
   to {
     transform: translateY(0);
   }
@@ -126,8 +132,13 @@ body {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .animate-fade-in {
