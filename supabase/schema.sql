@@ -4,11 +4,10 @@
 -- ==========================================
 
 -- 1. Limpieza de tablas (opcional, por si ya existen)
-DROP TRIGGER IF EXISTS trg_procesar_movimiento_stock ON movimientos;
-DROP FUNCTION IF EXISTS procesar_movimiento_stock();
 DROP TABLE IF EXISTS movimientos;
 DROP TABLE IF EXISTS productos;
 DROP TABLE IF EXISTS categorias;
+DROP FUNCTION IF EXISTS procesar_movimiento_stock();
 
 -- 2. Crear Tabla de Categorías Base
 CREATE TABLE categorias (
